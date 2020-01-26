@@ -14,7 +14,7 @@ Steps to Run:
 ```Bash
 $ cd 
 $ cd catkin_ws/src/
-$ git clone https://github.com/SohaibAl-emara/3D_Lidar_Curb_Detection.git
+$ git clone https://github.com/SohaibAl-emara/control_manager.git
 ```
 2- build the code
 ```Bash
