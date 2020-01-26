@@ -1,11 +1,15 @@
 # ROS Node controlles the mode of driving
 You can run this node to send ackermann msgs.
 It also allows you to switch between the driving modes:
+
 1- Manual control using keyboard
+
 2- Semi Autonmous node where you can control steering/speed only
+
 3- Fully autonmous
 
 Steps to Run:
+
 1- clone the repo into your workspace
 ```Bash
 $ cd 
