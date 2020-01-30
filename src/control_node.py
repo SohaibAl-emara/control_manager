@@ -2,12 +2,14 @@
 import rospy
 from ackermann_msgs.msg import AckermannDriveStamped
 from pynput import keyboard
+from sensor_msgs.msg import Joy
+
 
 class msg_manager:
-    # 1 -> manually     2-> semi sim_autonmous   3-> full autonmous
-    def __init__(self, steering_mode = 1, force_stop = 0, msg_full_auto = AckermannDriveStamped(),
-                msg_semi_auto = AckermannDriveStamped(),msg_manual = AckermannDriveStamped(), 
-                default_left = 0.4, default_right = -0.4, speed = 0, steering_angle = 0):
+    # 1 -> manually  2- manually joystick    3-> semi sim_autonmous   4-> full autonmous
+    def __init__(self, steering_mode=1, force_stop=0, msg_full_auto=AckermannDriveStamped(),
+                 msg_semi_auto=AckermannDriveStamped(), msg_manual=AckermannDriveStamped(),
+                 default_left=0.4, default_right=-0.4, speed=0, steering_angle=0):
         self.steering_mode = steering_mode
         self.force_stop = force_stop
         self.msg_full_auto = msg_full_auto
@@ -20,15 +22,13 @@ class msg_manager:
         self.speed = speed
         self.steering_angle = steering_angle
 
-
-
     def pid_callback(self, data):
         # full autonmous
-        if self.steering_mode == 3:
+        if self.steering_mode == 4:
             self.msg_full_auto = data
         # semi autonmous
-        elif self.steering_mode == 2:
-            pass 
+        elif self.steering_mode == 3:
+            pass
             # self.msg_semi_auto = data
             # self.msg_semi_auto.drive.speed = self.speed
 
@@ -38,15 +38,20 @@ class msg_manager:
             if key == keyboard.Key.space:
                 if self.steering_mode == 1:
                     rospy.loginfo('sim_autonmous mode')
-                    self.steering_mode = 2
+                    self.steering_mode = 3
 
                 elif self.steering_mode == 2:
                     rospy.loginfo('FULL_autonmous mode')
-                    self.steering_mode = 3
+                    self.steering_mode = 4
 
                 elif self.steering_mode == 3:
                     rospy.loginfo('MANUAL mode')
                     self.steering_mode = 1
+
+                elif self.steering_mode == 4:
+                    rospy.loginfo('MANUAL Mode Joystick')
+                    self.steering_mode = 2
+
             if(key.char == 'r'):
                 if(self.force_stop == 1):
                     self.speed = self.default_speed/2
@@ -64,43 +69,42 @@ class msg_manager:
             elif(key.char == 'a'):
                 if(self.force_stop == 1):
                     self.steering_angle = self.default_left
-                    #self.speed = 0
+                    # self.speed = 0
                 else:
-                    #rospy.loginfo('left')
+                    # rospy.loginfo('left')
                     self.speed = self.default_speed/2
                     self.steering_angle = self.default_left
-            elif(key.char =='d'):
+            elif(key.char == 'd'):
                 if(self.force_stop == 1):
                     self.steering_angle = self.default_right
-                    #self.speed = 0
+                    # self.speed = 0
                 else:
-                    #rospy.loginfo('right')
+                    # rospy.loginfo('right')
                     self.speed = self.default_speed/2
                     self.steering_angle = self.default_right
             elif(key.char == 'w'):
                 if(self.force_stop == 1):
                     self.steering_angle = self.default_left*2
-                    #self.speed = 0
+                    # self.speed = 0
                 else:
-                    #rospy.loginfo('forward')
+                    # rospy.loginfo('forward')
                     self.speed = self.default_speed
                     self.steering_angle = 0
             elif(key.char == 's'):
                 if(self.force_stop == 1):
                     self.steering_angle = self.default_right*2
-                    #self.speed = 0
+                    # self.speed = 0
                 else:
-                    #rospy.loginfo('backwards')
+                    # rospy.loginfo('backwards')
                     self.speed = - self.default_speed
                     self.steering_angle = 0
 
         except AttributeError:
             pass
 
-
     def on_release(self, key):
         try:
-            if key.char == 'w' or key.char == 's' or key.char == 'd' or key.char == 'a' or  key.char == 'r' or key.char == 'e' or key.char == 'f' or key == keyboard.Key.space:
+            if key.char == 'w' or key.char == 's' or key.char == 'd' or key.char == 'a' or key.char == 'r' or key.char == 'e' or key.char == 'f' or key == keyboard.Key.space:
                 self.speed = 0
                 self.steering_angle = 0
             elif key == keyboard.Key.esc:
@@ -110,9 +114,16 @@ class msg_manager:
         except AttributeError:
             pass
 
+    def joystick(self, data):
+        try:
+            self.speed = data.axes[2] * 2
+            self.steering_angle = data.axes[3] * 2
+        except AttributeError:
+            pass
+
     def publish(self, pub):
-        #rospy.loginfo("publish")
-        if self.steering_mode == 1:
+        # rospy.loginfo("publish")
+        if self.steering_mode == 1 or self.steering_mode == 2:
             self.msg_manual.drive.speed = self.speed
             self.msg_manual.drive.steering_angle = self.steering_angle
             self.msg_manual.drive.acceleration = 1
@@ -125,16 +136,19 @@ class msg_manager:
         elif self.steering_mode == 3:
             pub.publish(self.msg_full_auto)
 
-## main
+
+# main
 if __name__ == '__main__':
     rospy.init_node('control_mode', anonymous=True)
     manager = msg_manager()
-    pub = rospy.Publisher('/rbcar_robot_control/command', AckermannDriveStamped, queue_size=1)
+    pub = rospy.Publisher('/rbcar_robot_control/command',
+                          AckermannDriveStamped, queue_size=1)
+    rospy.Subscriber('/joy', Joy, manager.joystick)
     # rospy.Subscriber('/drive_cmd', AckermannDriveStamped, manager.pid_callback)
 
     listener = keyboard.Listener(
-                on_press=manager.on_press,
-                on_release=manager.on_release)
+        on_press=manager.on_press,
+        on_release=manager.on_release)
     listener.start()
     rate = rospy.Rate(2)
     while not rospy.is_shutdown():
